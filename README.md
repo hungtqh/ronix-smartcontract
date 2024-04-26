@@ -11,3 +11,12 @@ REPORT_GAS=true npx hardhat test
 npx hardhat node
 npx hardhat ignition deploy ./ignition/modules/Lock.ts
 ```
+
+ARBITRUM
+Ronix
+Each rebase -> distribute reward amount: rebase1: a1, rebase2: a2
+
+
+ETH
+Staking
+
