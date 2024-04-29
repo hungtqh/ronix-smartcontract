@@ -16,6 +16,7 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
     address public stakingAddress;
     uint256 targetGrowthRatePerRebase;
     uint256 totalRebase;
+    uint256 lastRebaseTime;
 
     event Deposit(
         address indexed user,
@@ -40,6 +41,7 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
         usdtAddress = _usdtAddress;
         stakingAddress = _stakingAddress;
         targetGrowthRatePerRebase = _targetGrowthRatePerRebase;
+        lastRebaseTime = block.timestamp - 8 hours; // allow immediate first time rebase
         __Ownable_init(msg.sender);
     }
 
@@ -94,11 +96,25 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
         emit Withdrawal(_msgSender(), ronixAmountIn, usdtAmountOut);
     }
 
-    // function rebaseRonix() external {
-    //     uint256 totalNFTs = IStaking(stakingAddress).totalNFTs();
+    function rebaseRonix() external {
+        require(
+            block.timestamp >= lastRebaseTime + 8 hours,
+            "Wait until next rebase"
+        );
+        (uint256 usdtReserve, uint256 ronixReserve) = getReserves();
 
-    //     // snapshot
-    // }
+        uint256 rewardAmount = usdtReserve - ronixReserve;
+        require(rewardAmount > 0, "Ronix is equals to USDT amount");
+
+        lastRebaseTime = block.timestamp;
+        IStaking(stakingAddress).setBlockReward(
+            totalRebase++,
+            block.number,
+            rewardAmount
+        );
+
+        IERC20(ronixAddress).transfer(stakingAddress, rewardAmount);
+    }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
 }

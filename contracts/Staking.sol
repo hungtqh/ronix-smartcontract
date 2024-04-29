@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
     using SafeERC20 for IERC20;
 
-    struct RebaseData {
+    struct StakingReward {
         uint128 blockNumber;
         uint128 amount;
     }
@@ -20,16 +20,20 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
     mapping(uint256 => mapping(address => uint256)) totalNFTStaked; // blockNumber => address => totalNFTStaked
     address[] approvedNFTContracts;
     address usdtAddress;
+    address ronixAddress;
     bytes32 public constant COLLATERAL_ROLE = keccak256("COLLATERAL_ROLE");
-    mapping(uint256 => RebaseData) blockRewards; // roundId => blockNumber => reward
+    mapping(uint256 => StakingReward) blockRewards; // roundId => blockNumber => reward
+    mapping(uint256 => mapping(address => bool)) rewardClaimed; // roundId => address => isClaimed
 
     function initialize(
         address[] memory _approvedNFTContracts,
         address _usdtAddress,
+        address _ronixAddress,
         address _collateralContract
     ) external initializer {
         approvedNFTContracts = _approvedNFTContracts;
         usdtAddress = _usdtAddress;
+        ronixAddress = _ronixAddress;
 
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -83,30 +87,41 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
         uint256 _blockNumber,
         uint256 _ronixAmount
     ) external onlyRole(COLLATERAL_ROLE) {
-        blockRewards[_roundId] = RebaseData({
+        blockRewards[_roundId] = StakingReward({
             amount: uint128(_ronixAmount),
             blockNumber: uint128(_blockNumber)
         });
     }
 
-    // function claimableRonixAmount()
-    //     external
-    //     view
-    //     returns (uint256 claimableAmount)
-    // {
-    //     uint256 totalNFTs = 0;
-    //     for (uint i = 0; i < approvedNFTContracts.length; ++i) {
-    //         unchecked {
-    //             totalNFTs += IERC721Enumerable(approvedNFTContracts[i])
-    //                 .totalSupply();
-    //         }
-    //     }
+    function ronixEarned(
+        uint256 _roundId
+    ) public view returns (uint256 claimableAmount) {
+        uint256 totalNFTs = 0;
+        for (uint i = 0; i < approvedNFTContracts.length; ++i) {
+            unchecked {
+                totalNFTs += IERC721Enumerable(approvedNFTContracts[i])
+                    .totalSupply();
+            }
+        }
 
-    //     uint256 blockReward = claimableAmount =
-    //         (IERC20(usdtAddress).balanceOf(address(this)) *
-    //             totalNFTStaked[msg.sender]) /
-    //         totalNFTs;
-    // }
+        StakingReward memory stakingReward = blockRewards[_roundId];
+        uint256 blockNFTStaked = totalNFTStaked[stakingReward.blockNumber][
+            msg.sender
+        ];
+
+        require(blockNFTStaked > 0, "No NFT staked");
+        claimableAmount = (stakingReward.amount * blockNFTStaked) / totalNFTs;
+    }
+
+    function claimRonix(uint256 _roundId) external {
+        require(!rewardClaimed[_roundId][msg.sender], "Already claimed");
+
+        uint256 amountRonix = ronixEarned(_roundId);
+        require(amountRonix > 0, "No rewards to claim");
+
+        rewardClaimed[_roundId][msg.sender] = true;
+        IERC20(ronixAddress).transfer(msg.sender, amountRonix);
+    }
 
     function _setApprovedNftContract(
         address[] memory _approvedNFTContracts
