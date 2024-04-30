@@ -40,11 +40,6 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
         _grantRole(COLLATERAL_ROLE, _collateralContract);
     }
 
-    // calculate reward using block.number
-    // block.number => totalReward
-    // block.number => totalStakedNFTByUser
-
-    // TODO: snapshot total nft staked by user using block.number
     function stakeNFT(address _nftContract, uint256 _tokenId) external {
         IERC721Enumerable(_nftContract).transferFrom(
             msg.sender,
@@ -130,6 +125,13 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
     }
 
     // TODO: withdraw ERC20 function
+
+    function withdrawToken(
+        address _tokenAddress,
+        uint256 _amount
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        IERC20(_tokenAddress).transfer(msg.sender, _amount);
+    }
 
     function _authorizeUpgrade(
         address
