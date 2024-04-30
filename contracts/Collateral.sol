@@ -113,7 +113,7 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
             rewardAmount
         );
 
-        IERC20(ronixAddress).transfer(stakingAddress, rewardAmount);
+        IERC20Extension(ronixAddress).mint(stakingAddress, rewardAmount);
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
