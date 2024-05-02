@@ -128,5 +128,12 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
         treasuryRatio = _treasuryRatio;
     }
 
+     function withdrawToken(
+        address _tokenAddress,
+        uint256 _amount
+    ) external onlyOwner {
+        IERC20(_tokenAddress).safeTransfer(msg.sender, _amount);
+    }
+
     function _authorizeUpgrade(address) internal override onlyOwner {}
 }

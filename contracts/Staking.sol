@@ -124,13 +124,11 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
         approvedNFTContracts = _approvedNFTContracts;
     }
 
-    // TODO: withdraw ERC20 function
-
     function withdrawToken(
         address _tokenAddress,
         uint256 _amount
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        IERC20(_tokenAddress).transfer(msg.sender, _amount);
+        IERC20(_tokenAddress).safeTransfer(msg.sender, _amount);
     }
 
     function _authorizeUpgrade(
