@@ -17,6 +17,7 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
     uint256 targetGrowthRatePerRebase;
     uint256 totalRebase;
     uint256 lastRebaseTime;
+    uint256 treasuryRatio;
 
     event Deposit(
         address indexed user,
@@ -107,13 +108,24 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
         require(rewardAmount > 0, "Ronix is equals to USDT amount");
 
         lastRebaseTime = block.timestamp;
+
+        uint256 treasureAmount = rewardAmount * treasuryRatio / 100;
+        if (treasureAmount > 0) {
+            IERC20Extension(ronixAddress).mint(treasuryAddress, treasureAmount);
+            rewardAmount -= treasureAmount;
+        }
+
         IStaking(stakingAddress).setBlockReward(
             totalRebase++,
             block.number,
             rewardAmount
         );
-
         IERC20Extension(ronixAddress).mint(stakingAddress, rewardAmount);
+    }
+
+    function setTreasuryRatio(uint256 _treasuryRatio) external onlyOwner {
+        require(_treasuryRatio > 0 && _treasuryRatio < 100, "Treasure ratio is invalid");
+        treasuryRatio = _treasuryRatio;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
