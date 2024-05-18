@@ -35,8 +35,26 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
         address _ronixAddress,
         address _usdtAddress,
         address _stakingAddress,
-        uint256 _targetGrowthRatePerRebase
+        uint256 _targetGrowthRatePerRebase // one decimal point 11 => 1.1
     ) external initializer {
+        require(
+            _treasuryAddress != address(0),
+            "Collateral: Invalid treasury address"
+        );
+        require(
+            _ronixAddress != address(0),
+            "Collateral: Invalid ronix address"
+        );
+        require(_usdtAddress != address(0), "Collateral: Invalid usdt address");
+        require(
+            _stakingAddress != address(0),
+            "Collateral: Invalid staking address"
+        );
+        require(
+            _targetGrowthRatePerRebase > 0,
+            "Collateral: Invalid target growth rate"
+        );
+
         treasuryAddress = _treasuryAddress;
         ronixAddress = _ronixAddress;
         usdtAddress = _usdtAddress;
@@ -44,12 +62,6 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
         targetGrowthRatePerRebase = _targetGrowthRatePerRebase;
         lastRebaseTime = block.timestamp - 8 hours; // allow immediate first time rebase
         __Ownable_init(msg.sender);
-    }
-
-    function setTargetGrowthRatePerRebase(
-        uint256 _targetGrowthRatePerRebase
-    ) external {
-        targetGrowthRatePerRebase = _targetGrowthRatePerRebase;
     }
 
     function getReserves()
@@ -63,7 +75,7 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
 
     function depositUSDT(uint256 usdtAmountIn) external {
         (, uint256 ronixReserve) = getReserves();
-        uint256 ronixAmountOut = usdtAmountIn /
+        uint256 ronixAmountOut = (usdtAmountIn * 10) /
             (ronixReserve * targetGrowthRatePerRebase);
 
         IERC20(usdtAddress).safeTransferFrom(
@@ -109,7 +121,7 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
 
         lastRebaseTime = block.timestamp;
 
-        uint256 treasureAmount = rewardAmount * treasuryRatio / 100;
+        uint256 treasureAmount = (rewardAmount * treasuryRatio) / 100;
         if (treasureAmount > 0) {
             IERC20Extension(ronixAddress).mint(treasuryAddress, treasureAmount);
             rewardAmount -= treasureAmount;
@@ -124,15 +136,28 @@ contract Collateral is UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function setTreasuryRatio(uint256 _treasuryRatio) external onlyOwner {
-        require(_treasuryRatio > 0 && _treasuryRatio < 100, "Treasure ratio is invalid");
+        require(
+            _treasuryRatio > 0 && _treasuryRatio < 100,
+            "Treasure ratio is invalid"
+        );
         treasuryRatio = _treasuryRatio;
     }
 
-     function withdrawToken(
+    function withdrawToken(
         address _tokenAddress,
         uint256 _amount
     ) external onlyOwner {
         IERC20(_tokenAddress).safeTransfer(msg.sender, _amount);
+    }
+
+    function setTargetGrowthRatePerRebase(
+        uint256 _targetGrowthRatePerRebase
+    ) external onlyOwner {
+        require(
+            targetGrowthRatePerRebase > 0,
+            "Collateral: Invalid target growth rate"
+        );
+        targetGrowthRatePerRebase = _targetGrowthRatePerRebase;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}

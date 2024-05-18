@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy:local": "npx hardhat run scripts/deploy.ts",
+    "deploy-mocks:local": "npx hardhat run scripts/deploy-mocks.ts"
   },
   "keywords": [],
   "author": "",
@@ -12,9 +14,13 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts": "^5.0.0",
+    "@openzeppelin/hardhat-upgrades": "^3.1.0",
+    "dotenv": "^16.4.5",
     "hardhat": "^2.22.2"
   },
   "dependencies": {
+    "@ethersproject/keccak256": "^5.7.0",
+    "@ethersproject/strings": "^5.7.0",
     "@openzeppelin/contracts-upgradeable": "^5.0.2"
   }
 }

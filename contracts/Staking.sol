@@ -13,23 +13,22 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
         uint128 amount;
     }
 
-    // Storage
     mapping(address => mapping(address => mapping(uint => bool)))
         public userNFTStaked; // contractAddr => userAddr => tokenId => isStaked
     mapping(address => uint256[]) nftStaked; // contractAddress => tokenIds
-    mapping(uint256 => mapping(address => uint256)) totalNFTStaked; // blockNumber => address => totalNFTStaked
+    mapping(uint256 => mapping(address => uint256)) usersTotalNFTStaked; // blockNumber => address => usersTotalNFTStaked
     address[] approvedNFTContracts;
     address usdtAddress;
     address ronixAddress;
     bytes32 public constant COLLATERAL_ROLE = keccak256("COLLATERAL_ROLE");
     mapping(uint256 => StakingReward) blockRewards; // roundId => blockNumber => reward
     mapping(uint256 => mapping(address => bool)) rewardClaimed; // roundId => address => isClaimed
+    uint256 public totalNFTStaked;
 
     function initialize(
-        address[] memory _approvedNFTContracts,
+        address[] calldata _approvedNFTContracts,
         address _usdtAddress,
-        address _ronixAddress,
-        address _collateralContract
+        address _ronixAddress
     ) external initializer {
         approvedNFTContracts = _approvedNFTContracts;
         usdtAddress = _usdtAddress;
@@ -37,7 +36,6 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
 
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(COLLATERAL_ROLE, _collateralContract);
     }
 
     function stakeNFT(address _nftContract, uint256 _tokenId) external {
@@ -49,10 +47,11 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
 
         userNFTStaked[_nftContract][msg.sender][_tokenId] = true;
         unchecked {
-            uint blockNFTStaked = totalNFTStaked[block.number][msg.sender];
+            totalNFTStaked++;
+            uint blockNFTStaked = usersTotalNFTStaked[block.number][msg.sender];
 
-            totalNFTStaked[block.number][msg.sender] = blockNFTStaked == 0
-                ? totalNFTStaked[block.number - 1][msg.sender] + 1
+            usersTotalNFTStaked[block.number][msg.sender] = blockNFTStaked == 0
+                ? usersTotalNFTStaked[block.number - 1][msg.sender] + 1
                 : blockNFTStaked + 1;
         }
     }
@@ -69,11 +68,12 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
             _tokenId
         );
         unchecked {
-            uint blockNFTStaked = totalNFTStaked[block.number][msg.sender];
+            totalNFTStaked--;
+            uint blockNFTStaked = usersTotalNFTStaked[block.number][msg.sender];
 
-            totalNFTStaked[block.number][msg.sender] = blockNFTStaked == 0
-                ? totalNFTStaked[block.number - 1][msg.sender] - 1
-                : totalNFTStaked[block.number][msg.sender] - 1;
+            usersTotalNFTStaked[block.number][msg.sender] = blockNFTStaked == 0
+                ? usersTotalNFTStaked[block.number - 1][msg.sender] - 1
+                : usersTotalNFTStaked[block.number][msg.sender] - 1;
         }
     }
 
@@ -100,7 +100,7 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
         }
 
         StakingReward memory stakingReward = blockRewards[_roundId];
-        uint256 blockNFTStaked = totalNFTStaked[stakingReward.blockNumber][
+        uint256 blockNFTStaked = usersTotalNFTStaked[stakingReward.blockNumber][
             msg.sender
         ];
 
@@ -119,7 +119,7 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
     }
 
     function _setApprovedNftContract(
-        address[] memory _approvedNFTContracts
+        address[] calldata _approvedNFTContracts
     ) internal {
         approvedNFTContracts = _approvedNFTContracts;
     }
@@ -129,6 +129,10 @@ contract Staking is UUPSUpgradeable, AccessControlUpgradeable {
         uint256 _amount
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         IERC20(_tokenAddress).safeTransfer(msg.sender, _amount);
+    }
+
+    function getUserTotalNFTStaked(address _walletAddress) external view returns (uint256) {
+        return usersTotalNFTStaked[block.number][_walletAddress];
     }
 
     function _authorizeUpgrade(
